@@ -1670,7 +1670,7 @@ function renderTracked(data){
     wrap.innerHTML=`<div class="empty" style="padding:18px"><div class="empty-ico">📦</div>
       <div class="empty-txt">Add tracked items in Settings → Tracked Items</div></div>`;return;
   }
-  let html=`<table class="tracked-table"><thead><tr>
+  let html=`<div class="tbl-wrap" style="max-height:420px;overflow-y:auto"><table class="tracked-table"><thead><tr>
     <th>Item</th><th>Avg Monthly Cost</th><th>Avg Qty/Month</th>
     <th>Months Tracked</th><th>Last Month Cost</th><th>Last Month</th>
   </tr></thead><tbody>`;
@@ -1687,7 +1687,7 @@ function renderTracked(data){
       <td>${trendIcon} ${fmt(d.lastCost)}</td>
       <td style="color:var(--text2);font-size:.72rem">${d.lastMonth||'—'}</td></tr>`;
   });
-  html+=`</tbody></table>`;
+  html+=`</tbody></table></div>`;
   wrap.innerHTML=html;
 }
 
