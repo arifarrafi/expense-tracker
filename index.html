@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ExpenseIQ">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <title>ExpenseIQ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -81,6 +82,35 @@ input,select,textarea{font-family:var(--font);outline:none}
 .setup-card p{font-size:.82rem;color:var(--text2);line-height:1.65;margin-bottom:10px}
 .setup-card code{display:block;background:var(--bg2);padding:8px 11px;border-radius:8px;
   font-size:.74rem;margin:8px 0;word-break:break-all;color:var(--primary-d)}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--grad-dark);z-index:9700;
+  display:none;align-items:center;justify-content:center;padding:24px}
+#login-screen.show{display:flex}
+.login-card{max-width:380px;width:100%;background:var(--card);border-radius:var(--r-xl);
+  padding:34px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);
+  animation:mdIn .35s cubic-bezier(.34,1.56,.64,1)}
+.login-logo{font-size:2.6rem;margin-bottom:6px;animation:ldBounce 2.4s ease infinite}
+.login-card h1{font-size:1.15rem;font-weight:700;margin-bottom:4px}
+.login-card p{font-size:.8rem;color:var(--text2);margin-bottom:22px;line-height:1.55}
+#g_signin_btn{display:flex;justify-content:center;min-height:44px}
+#login-spinner{display:none;align-items:center;justify-content:center;gap:8px;
+  margin-top:16px;font-size:.78rem;color:var(--text2)}
+.spin-dk{width:15px;height:15px;border:2.5px solid var(--border);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .6s linear infinite}
+#login-error{display:none;margin-top:16px;background:var(--red-l);color:var(--red);
+  border:1px solid #FECDD3;border-radius:var(--r-md);padding:10px 13px;font-size:.76rem;
+  text-align:left;line-height:1.5}
+.login-foot{margin-top:20px;font-size:.68rem;color:var(--text3)}
+
+/* ── SIDEBAR IDENTITY FOOTER ── */
+.sn-whoami{font-size:.68rem;color:rgba(255,255,255,.5);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;margin-bottom:6px}
+.sn-signout{width:100%;font-size:.7rem;font-weight:600;color:rgba(255,255,255,.75);
+  background:rgba(255,255,255,.08);border-radius:var(--r-md);padding:6px 0;
+  transition:all var(--trans)}
+.sn-signout:hover{background:rgba(255,255,255,.16);color:#fff}
+body.snav-closed .sn-whoami,body.snav-closed .sn-signout{display:none}
 
 /* ── SKELETON SHIMMER (loading states) ── */
 .skel{position:relative;overflow:hidden;background:var(--skel-base);border-radius:var(--r-md)}
@@ -537,9 +567,21 @@ code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:.82em;col
   <div class="setup-card">
     <div class="setup-ico">🛠️</div>
     <h2>One quick setup step</h2>
-    <p>This copy of ExpenseIQ isn't connected to your Google Sheet backend yet. Open <code>index.html</code> and fill in the <code>CONFIG</code> object near the top of the script with your deployed Apps Script Web App URL and the shared secret token.</p>
-    <code id="setup-snippet">const CONFIG = {<br>&nbsp;&nbsp;API_URL: 'https://script.google.com/macros/s/XXXX/exec',<br>&nbsp;&nbsp;API_TOKEN: 'your-secret-token'<br>};</code>
-    <p>Full step-by-step instructions are in <strong>README.md</strong> from the download package. Once both values are set and the script is deployed as a Web App, reload this page.</p>
+    <p>This copy of ExpenseIQ isn't fully connected yet. Open <code>index.html</code> and fill in the <code>CONFIG</code> object near the top of the script with your deployed Apps Script Web App URL, the shared secret token, and your Google OAuth Client ID (for Sign in with Google).</p>
+    <code id="setup-snippet">const CONFIG = {<br>&nbsp;&nbsp;API_URL: 'https://script.google.com/macros/s/XXXX/exec',<br>&nbsp;&nbsp;API_TOKEN: 'your-secret-token',<br>&nbsp;&nbsp;GOOGLE_CLIENT_ID: 'xxxx.apps.googleusercontent.com'<br>};</code>
+    <p>Full step-by-step instructions are in <strong>README.md</strong> from the download package. Once all three values are set, the script is deployed as a Web App, and your GitHub Pages URL is registered as an authorized origin in Google Cloud Console, reload this page.</p>
+  </div>
+</div>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">💰</div>
+    <h1>ExpenseIQ</h1>
+    <p id="login-msg">Sign in with the Google account you've been given access to.</p>
+    <div id="g_signin_btn"></div>
+    <div id="login-spinner"><span class="spin-dk"></span> Verifying…</div>
+    <div id="login-error"></div>
+    <div class="login-foot">Only Google accounts added under Settings → Allowed Accounts can access this data.</div>
   </div>
 </div>
 
@@ -590,7 +632,10 @@ code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:.82em;col
         <span class="sn-txt">Settings</span>
       </button>
     </div>
-    <div class="sn-footer">ExpenseIQ · Personal Finance</div>
+    <div class="sn-footer">
+      <div class="sn-whoami" id="sn-whoami">—</div>
+      <button class="sn-signout" onclick="signOut()">Sign out</button>
+    </div>
   </nav>
 
   <!-- ══ MAIN CONTENT ══ -->
@@ -969,6 +1014,21 @@ code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:.82em;col
           <button class="btn btn-dk btn-sm" onclick="addTrackedItem()">Add</button>
         </div>
       </div>
+      <div class="card mb18">
+        <div class="f-between" style="margin-bottom:12px">
+          <div class="fw7" style="font-size:.9rem">🔐 Allowed Google Accounts</div>
+          <span class="badge b-bl" id="me-badge">Signed in as —</span>
+        </div>
+        <p class="txt-xs" style="color:var(--text2);margin-bottom:12px;line-height:1.6">
+          Only the Gmail accounts listed here (plus the owner account hardcoded in <code>Code.gs</code>) can sign in and see this data. Add a friend or family member's Gmail address to give them access — no password ever needed, Google handles sign-in.
+        </p>
+        <div class="chip-mgr-list" id="allowed-chips"></div>
+        <div class="add-chip-row">
+          <input type="email" class="finput" id="new-allowed" placeholder="someone@gmail.com">
+          <button class="btn btn-dk btn-sm" onclick="addAllowedUser()">Add</button>
+        </div>
+        <button class="btn btn-ol btn-full mt18" onclick="signOut()">🚪 Sign Out</button>
+      </div>
       <div class="card mt18">
         <div class="fw7 mb14" style="font-size:.9rem;margin-bottom:12px">ℹ About ExpenseIQ</div>
         <p class="txt-sm" style="color:var(--text2);line-height:1.7">
@@ -978,7 +1038,9 @@ code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:.82em;col
           • <code>Ledger</code> — Unified income &amp; expense entries (Month-Year, Type, Title, Details, Amount)<br>
           • <code>Fixed_Expenses</code> — Recurring monthly store-type costs<br>
           • <code>Budget</code> — Monthly budget targets<br>
-          • <code>Settings</code> — Item types, Unit types, Tracked items
+          • <code>Settings</code> — Item types, Unit types, Tracked items<br>
+          • <code>Allowed_Users</code> — Gmail addresses permitted to sign in<br>
+          • <code>Sessions</code> — Active sign-ins (delete a row here to force that device to sign out)
         </p>
       </div>
     </div><!-- /settings -->
@@ -1117,16 +1179,35 @@ code{background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:.82em;col
 // BACKEND CONFIG
 // ============================================================
 // Paste the values from your deployed Google Apps Script Web App here.
-//   API_URL   → Deploy ▸ Manage deployments ▸ copy the URL ending in /exec
-//   API_TOKEN → must exactly match the API_TOKEN constant inside Code.gs
-// See README.md for the full step-by-step walkthrough.
+//   API_URL          → Deploy ▸ Manage deployments ▸ copy the URL ending in /exec
+//   API_TOKEN        → must exactly match the API_TOKEN constant inside Code.gs
+//   GOOGLE_CLIENT_ID → OAuth Client ID from Google Cloud Console (Sign in with Google)
+// See README.md for the full step-by-step walkthrough of both.
 const CONFIG = {
-  API_URL:   'https://script.google.com/macros/s/AKfycbxOM8uASeBY8gInTfd1bjOQ_eocOQWKu1V0NBwcIIGtZ0eSsmSjnLABgWf3zPSlQ5LIKg/exec',
-  API_TOKEN: 'kamnhtdrscvploatvdhhhsnammmstrasgzx'
+  API_URL:          'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+  API_TOKEN:         'PASTE_YOUR_SECRET_TOKEN_HERE',
+  GOOGLE_CLIENT_ID: 'PASTE_YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com'
 };
 
+// Signed-in session — who is using the app right now. Restored from
+// localStorage so people don't have to sign in again every visit.
+const SESSION = {
+  token: localStorage.getItem('eiq_session') || '',
+  email: localStorage.getItem('eiq_email')   || ''
+};
+function persistSession(token, email){
+  SESSION.token = token; SESSION.email = email;
+  localStorage.setItem('eiq_session', token);
+  localStorage.setItem('eiq_email', email);
+}
+function clearSession(){
+  SESSION.token = ''; SESSION.email = '';
+  localStorage.removeItem('eiq_session');
+  localStorage.removeItem('eiq_email');
+}
+
 // ============================================================
-// google.script.run-COMPATIBLE SHIM
+// GAS.script.run-COMPATIBLE SHIM
 // ------------------------------------------------------------
 // The app below was originally built to run inside Google Apps
 // Script's HtmlService, where `google.script.run` is provided
@@ -1134,10 +1215,13 @@ const CONFIG = {
 // Pages there is no such bridge, so this shim recreates the exact
 // same chainable API — .withSuccessHandler().withFailureHandler()
 // .someFunction(args) — but transports the call over HTTPS to the
-// Apps Script Web App instead. Every line below this block is
-// completely unmodified from the original Apps Script app.
+// Apps Script Web App instead, attaching the current sign-in session
+// to every request. (Renamed from `google` to `GAS` so the real
+// `window.google` object — used below for Sign in with Google —
+// isn't shadowed.) Every line of app logic below this block is
+// otherwise unmodified from the original Apps Script app.
 // ============================================================
-const google = (function(){
+const GAS = (function(){
   function netStart(){
     const bar=document.getElementById('net-bar');
     if(!bar)return;
@@ -1156,11 +1240,18 @@ const google = (function(){
     return fetch(CONFIG.API_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight on Apps Script
-      body: JSON.stringify({ action, args, token: CONFIG.API_TOKEN })
+      body: JSON.stringify({ action, args, token: CONFIG.API_TOKEN, session: SESSION.token })
     })
     .then(res=>{
       if(!res.ok) throw new Error('Network error ('+res.status+')');
       return res.json();
+    })
+    .then(result=>{
+      if(result && result.success===false && result.error==='SESSION_EXPIRED'){
+        clearSession();
+        showLogin('Your session ended — please sign in again.');
+      }
+      return result;
     })
     .finally(netEnd);
   }
@@ -1193,8 +1284,13 @@ function isConfigured(){
     && CONFIG.API_URL.indexOf('PASTE_YOUR') !== 0
     && CONFIG.API_URL.indexOf('script.google.com') !== -1;
 }
+function isAuthConfigured(){
+  return !!CONFIG.GOOGLE_CLIENT_ID
+    && CONFIG.GOOGLE_CLIENT_ID.indexOf('PASTE_YOUR') !== 0
+    && CONFIG.GOOGLE_CLIENT_ID.indexOf('.apps.googleusercontent.com') !== -1;
+}
 (function checkSetup(){
-  if(!isConfigured()){
+  if(!isConfigured() || !isAuthConfigured()){
     document.addEventListener('DOMContentLoaded',()=>{
       const ld=document.getElementById('loading');if(ld)ld.classList.add('hide');
       const sc=document.getElementById('setup-screen');if(sc)sc.classList.add('show');
@@ -1214,7 +1310,7 @@ const S = {
   cats:{itemTypes:[],unitTypes:[],trackedItems:[]},
   selIT:'', selUT:'', editSelIT:'', editSelUT:'',
   charts:{}, sortF:'date', sortD:1,
-  dashData:null, trackedData:{}
+  dashData:null, trackedData:{}, allowedUsers:[]
 };
 
 const MN  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1241,10 +1337,86 @@ function getCatStyle(type) {
 }
 
 // ============================================================
+// AUTH — Sign in with Google
+// ============================================================
+function showLogin(message){
+  if(message) document.getElementById('login-msg').textContent = message;
+  document.getElementById('login-screen').classList.add('show');
+  hideLoad();
+  renderGoogleButton();
+}
+function hideLogin(){
+  document.getElementById('login-screen').classList.remove('show');
+}
+function renderGoogleButton(){
+  if(!window.google || !window.google.accounts || !window.google.accounts.id){
+    setTimeout(renderGoogleButton, 200); // GIS script still loading — retry shortly
+    return;
+  }
+  google.accounts.id.initialize({ client_id: CONFIG.GOOGLE_CLIENT_ID, callback: onGoogleCredential });
+  const slot = document.getElementById('g_signin_btn');
+  slot.innerHTML = '';
+  google.accounts.id.renderButton(slot, { theme:'filled_black', size:'large', shape:'pill', text:'signin_with', width:260 });
+}
+function onGoogleCredential(response){
+  const errBox=document.getElementById('login-error');
+  errBox.style.display='none';
+  document.getElementById('login-spinner').style.display='flex';
+  GAS.script.run
+    .withSuccessHandler(r=>{
+      document.getElementById('login-spinner').style.display='none';
+      if(r.success){
+        persistSession(r.sessionToken, r.email);
+        hideLogin();
+        bootApp();
+      }else{
+        errBox.textContent = r.message || r.error || 'Sign-in failed. Please try again.';
+        errBox.style.display='block';
+      }
+    })
+    .withFailureHandler(e=>{
+      document.getElementById('login-spinner').style.display='none';
+      errBox.textContent='Connection error: '+e.message;
+      errBox.style.display='block';
+    })
+    .loginWithGoogle(response.credential);
+}
+function signOut(){
+  const tok=SESSION.token;
+  clearSession();
+  if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+  if(tok) GAS.script.run.withFailureHandler(()=>{}).logout(tok);
+  location.reload();
+}
+function updateWhoAmI(){
+  const label = SESSION.email ? 'Signed in as '+SESSION.email : 'Signed in as —';
+  const a=document.getElementById('sn-whoami');if(a)a.textContent=label;
+  const b=document.getElementById('me-badge');if(b)b.textContent=label;
+}
+
+// ============================================================
 // BOOT
 // ============================================================
 document.addEventListener('DOMContentLoaded',function(){
-  if(!isConfigured())return; // setup-screen handles this case instead
+  if(!isConfigured() || !isAuthConfigured())return; // setup-screen handles this case instead
+  if(SESSION.token){
+    // Validate the saved session before showing the dashboard, so an
+    // expired sign-in goes straight to the login screen instead of
+    // flashing stale data first.
+    GAS.script.run
+      .withSuccessHandler(r=>{
+        if(r.success){ SESSION.email=r.email; bootApp(); }
+        else { clearSession(); showLogin(); }
+      })
+      .withFailureHandler(()=>showLogin('Could not reach the server — please sign in again.'))
+      .checkSession(SESSION.token);
+  } else {
+    showLogin();
+  }
+});
+
+function bootApp(){
+  updateWhoAmI();
   setTimeout(()=>hideLoad(),12000);
   const today=new Date().toISOString().split('T')[0];
   const todayMonth=today.slice(0,7);
@@ -1262,38 +1434,39 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('new-it').addEventListener('keydown',e=>{if(e.key==='Enter')addItemType();});
   document.getElementById('new-ut').addEventListener('keydown',e=>{if(e.key==='Enter')addUnitType();});
   document.getElementById('new-tracked').addEventListener('keydown',e=>{if(e.key==='Enter')addTrackedItem();});
+  document.getElementById('new-allowed').addEventListener('keydown',e=>{if(e.key==='Enter')addAllowedUser();});
 
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){
         S.cats={itemTypes:r.itemTypes||[],unitTypes:r.unitTypes||[],trackedItems:r.trackedItems||[]};
-        buildChipSelectors();buildSettingsChips();loadAll();
+        buildChipSelectors();buildSettingsChips();loadAll();loadAllowedUsers();
       } else{toast('Cannot load categories: '+r.error,'err');hideLoad();}
     })
     .withFailureHandler(err=>{toast('Connection error: '+err.message,'err');hideLoad();})
     .getCategories();
-});
+}
 
 function loadAll(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{S.expenses=r.data||[];loadLedger();})
     .withFailureHandler(()=>{toast('Error loading expenses','err');hideLoad();})
     .getAllExpenses();
 }
 function loadLedger(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{S.ledger=r.data||[];loadFixed();})
     .withFailureHandler(()=>{S.ledger=[];loadFixed();})
     .getAllLedgerEntries();
 }
 function loadFixed(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{S.fixed=r.data||[];loadDash();})
     .withFailureHandler(()=>{S.fixed=[];loadDash();})
     .getAllFixedExpenses();
 }
 function loadDash(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       S.dashData=r;
       renderDash(r);
@@ -1307,7 +1480,7 @@ function loadDash(){
     .getDashboardData(S.month,S.year);
 }
 function refreshDash(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{S.dashData=r;renderDash(r);})
     .withFailureHandler(()=>{})
     .getDashboardData(S.month,S.year);
@@ -1315,14 +1488,14 @@ function refreshDash(){
 function refreshAll(){loadAll();}
 function loadTracked(){
   if(!S.cats.trackedItems.length){renderTracked({});return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){S.trackedData=r.data||{};renderTracked(r.data);}})
     .withFailureHandler(()=>{})
     .getTrackedItemsData(S.cats.trackedItems);
 }
 function refreshTracked(){
   if(!S.cats.trackedItems.length){toast('Add tracked items in Settings first','err');return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){S.trackedData=r.data||{};renderTracked(r.data);toast('Refreshed ✓','ok');}})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .getTrackedItemsData(S.cats.trackedItems);
@@ -1388,7 +1561,7 @@ function selectDashMonth(m){
   const localDash=computeDashLocally();
   if(localDash)renderDashNumbers(localDash);
   // Fetch fresh data: full render (numbers + charts) when server responds
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{S.dashData=r;renderDash(r);})
     .withFailureHandler(()=>{})
     .getDashboardData(S.month,S.year);
@@ -1696,7 +1869,7 @@ let _itemChartData=null;
 function doItemSearch(){
   const name=document.getElementById('item-search-inp').value.trim();
   if(!name){toast('Enter an item name','err');return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(!r.success||!Object.keys(r.data||{}).length){
         document.getElementById('item-chart-wrap').style.display='none';
@@ -1903,7 +2076,7 @@ function submitExpense(){
   if(!date||!item||!itype||!qty||!utype||!uprice){toast('Please fill all fields and select Item Type &amp; Unit Type','err');return;}
   const btn=document.getElementById('add-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){
         toast('Expense added ✓','ok');
@@ -1988,14 +2161,14 @@ function saveEdit(){
     itemType:document.getElementById('e-itype').value,quantity:document.getElementById('e-qty').value,
     unitType:document.getElementById('e-utype').value,unitPrice:document.getElementById('e-uprice').value};
   if(!d.date||!d.item||!d.itemType||!d.quantity||!d.unitType||!d.unitPrice){toast('Please fill all fields','err');return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){toast('Updated ✓','ok');closeModal('edit-modal');loadAll();}else toast('Error: '+r.error,'err');})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .updateExpense(ri,d);
 }
 function delExpense(ri){
   if(!confirm('Delete this expense entry?'))return;
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){toast('Deleted','ok');loadAll();}else toast('Error: '+r.error,'err');})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .deleteExpense(ri);
@@ -2070,7 +2243,7 @@ function submitLedgerEntry(){
   if(!monthYear||!title||!amount){toast('Month-Year, Title and Amount are required','err');return;}
   const btn=document.getElementById('le-add-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){
         toast((type==='Income'?'Income':'Expense')+' added ✓','ok');
@@ -2083,7 +2256,7 @@ function submitLedgerEntry(){
     .addLedgerEntry({monthYear,type,title,details,amount});
 }
 function reloadLedger(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(x=>{S.ledger=x.data||[];renderLedgerList();refreshDash();})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .getAllLedgerEntries();
@@ -2116,7 +2289,7 @@ function saveEditLedger(){
     amount:document.getElementById('el-amount').value
   };
   if(!d.monthYear||!d.title||!d.amount){toast('Month-Year, Title and Amount are required','err');return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){toast('Entry updated ✓','ok');closeModal('edit-ledger-modal');reloadLedger();}
       else toast('Error: '+r.error,'err');
@@ -2182,7 +2355,7 @@ function renderLedgerList(){
 }
 function delLedgerEntry(ri){
   if(!confirm('Delete this entry?'))return;
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){toast('Deleted','ok');reloadLedger();}else toast('Error: '+r.error,'err');})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .deleteLedgerEntry(ri);
@@ -2195,12 +2368,12 @@ function submitFixed(){
   const cat=document.getElementById('f-cat').value.trim();
   const notes=document.getElementById('f-notes').value.trim();
   if(!desc||!amt){toast('Description and amount are required','err');return;}
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){
         toast('Fixed expense added ✓','ok');
         ['f-desc','f-amt','f-cat','f-notes'].forEach(id=>document.getElementById(id).value='');
-        google.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
+        GAS.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
       }else toast('Error: '+r.error,'err');
     })
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
@@ -2231,10 +2404,10 @@ function renderFixList(){
 function toggleFixed(ri,cur){
   const entry=S.fixed.find(f=>f.rowIndex===ri);if(!entry)return;
   entry.active=!cur;
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){toast(cur?'Paused':'Enabled','ok');
-        google.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
+        GAS.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
       }else toast('Error: '+r.error,'err');
     })
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
@@ -2242,10 +2415,10 @@ function toggleFixed(ri,cur){
 }
 function delFixed(ri){
   if(!confirm('Delete this fixed expense?'))return;
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{
       if(r.success){toast('Deleted','ok');
-        google.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
+        GAS.script.run.withSuccessHandler(x=>{S.fixed=x.data||[];renderFixList();refreshDash();}).getAllFixedExpenses();
       }else toast('Error: '+r.error,'err');
     })
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
@@ -2307,10 +2480,47 @@ function removeUT(t){S.cats.unitTypes=S.cats.unitTypes.filter(x=>x!==t);saveCats
 function addTrackedItem(){const v=document.getElementById('new-tracked').value.trim();if(!v)return;if(S.cats.trackedItems.includes(v)){toast('Already exists','err');return;}S.cats.trackedItems.push(v);document.getElementById('new-tracked').value='';saveCats();}
 function removeTracked(t){S.cats.trackedItems=S.cats.trackedItems.filter(x=>x!==t);saveCats();}
 function saveCats(){
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){toast('Saved ✓','ok');buildSettingsChips();buildChipSelectors();loadTracked();}else toast('Error saving','err');})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .saveCategories(S.cats.itemTypes,S.cats.unitTypes,S.cats.trackedItems);
+}
+
+// ============================================================
+// ALLOWED ACCOUNTS  (who can sign in with Google)
+// ============================================================
+function loadAllowedUsers(){
+  GAS.script.run
+    .withSuccessHandler(r=>{ if(r.success){ S.allowedUsers=r.emails||[]; renderAllowedUsers(); } })
+    .withFailureHandler(()=>{})
+    .getAllowedUsers();
+}
+function renderAllowedUsers(){
+  const c=document.getElementById('allowed-chips');if(!c)return;
+  c.innerHTML = S.allowedUsers.length
+    ? S.allowedUsers.map(e=>
+        `<div class="mgr-chip u">${esc(e)}<button class="chip-x u" onclick="removeAllowedUser('${esc(e)}')">×</button></div>`).join('')
+    : '<span class="txt-xs" style="color:var(--text3)">No extra accounts added — only the owner email in Code.gs can sign in.</span>';
+}
+function addAllowedUser(){
+  const inp=document.getElementById('new-allowed');
+  const v=inp.value.trim().toLowerCase();
+  if(!v||!v.includes('@')){toast('Enter a valid email address','err');return;}
+  if(S.allowedUsers.includes(v)){toast('Already added','err');return;}
+  inp.value='';
+  saveAllowedList([...S.allowedUsers, v]);
+}
+function removeAllowedUser(v){
+  saveAllowedList(S.allowedUsers.filter(x=>x!==v));
+}
+function saveAllowedList(list){
+  GAS.script.run
+    .withSuccessHandler(r=>{
+      if(r.success){ S.allowedUsers=r.emails||list; renderAllowedUsers(); toast('Saved ✓','ok'); }
+      else toast('Error: '+(r.error||'could not save'),'err');
+    })
+    .withFailureHandler(e=>toast('Error: '+e.message,'err'))
+    .saveAllowedUsers(list);
 }
 
 // ============================================================
@@ -2319,14 +2529,14 @@ function saveCats(){
 function openBudgetModal(){
   const my=`${S.year}-${String(S.month).padStart(2,'0')}`;
   document.getElementById('bgt-month-lbl').textContent=`${MNF[S.month-1]} ${S.year}`;
-  google.script.run.withSuccessHandler(r=>{document.getElementById('bgt-inp').value=r.budget||'';}).withFailureHandler(()=>{}).getBudget(my);
+  GAS.script.run.withSuccessHandler(r=>{document.getElementById('bgt-inp').value=r.budget||'';}).withFailureHandler(()=>{}).getBudget(my);
   document.getElementById('budget-modal').classList.add('show');
 }
 function saveBudget(){
   const a=document.getElementById('bgt-inp').value;
   if(!a){toast('Enter a budget amount','err');return;}
   const my=`${S.year}-${String(S.month).padStart(2,'0')}`;
-  google.script.run
+  GAS.script.run
     .withSuccessHandler(r=>{if(r.success){toast('Budget set ✓','ok');closeModal('budget-modal');refreshDash();}else toast('Error: '+r.error,'err');})
     .withFailureHandler(e=>toast('Error: '+e.message,'err'))
     .setBudget(my,a);
